@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from constants import DEFAULT_EOP, get_code
+from constants import DEFAULT_EOP, PAYLOAD_SIZE, get_code, get_length
 from typing import Union, List
 
 
 class Parser():
-    """Conversor de bytes; `mode = "decoded" ou "encoded"`"""
+    """Conversor de bytes;"""
 
     def __init__(self, data: bytes = None):
         self.data = data
@@ -69,19 +69,11 @@ class Parser():
         else:
             self.set_error()
             return DEFAULT_EOP
-    
+
     def set_error(self):
-        self.data=b""
+        self.data = b""
         self.code = "E"
         self.dtype = "B"
         self.payload = b""
         self.length = 0
         self.remaining = 0
-
-def get_length(data: Union[int, str, bytes, float]) -> int:
-    if type(data) == int:
-        return data.bit_length()//8 + 1
-    elif type(data) in [str, bytes]:
-        return len(data)
-    else:
-        return 0

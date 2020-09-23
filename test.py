@@ -2,6 +2,7 @@ import unittest
 
 from constants import DEFAULT_EOP
 from data_parser import Parser
+from data_queue import Splitter, PackageQueue
 from head import Head
 from package import Package
 from payload import Payload
@@ -202,6 +203,29 @@ class TestPackage(unittest.TestCase):
         package_test_function(self, package, b"", "H", "B", 0, 0)
         self.assertTrue(package.is_handshake())
         self.assertFalse(package.is_error())
+
+
+class TestSplitter(unittest.TestCase):
+    def testBytesSizeIsMultipleOfPayloadSize(self):
+        bytes_for_testing = ("1"*114*3).encode()
+        splitter = Splitter(bytes_for_testing)
+        result_must_be = [("1"*114).encode()]*3
+        self.assertEqual(splitter.splitted, result_must_be)
+
+    def testBytesSizeIsNotMultipleOfPayloadSize(self):
+        bytes_for_testing = ("1"*114*3).encode() + ("1"*70).encode()
+        splitter = Splitter(bytes_for_testing)
+        result_must_be = [("1"*114).encode()]*3 + [("1"*70).encode()]
+        self.assertEqual(splitter.splitted, result_must_be)
+
+class TestQueue(unittest.TestCase):
+    def testEmptyQueue(self):
+        encoded = b''
+        splitted = Splitter(encoded).splitted
+        queue = PackageQueue(splitted)
+        queue.get_next()
+        self.assertFalse(queue.has_next())
+
 
 
 def parser_test_function(this: unittest.TestCase, parser: Parser,

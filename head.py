@@ -2,16 +2,25 @@
 
 from typing import List, Union
 
-from constants import CODES, DATATYPES, DEFAULT_EOP
+from constants import CODES, DATATYPES, DEFAULT_EOP, get_code
 
 
 class Head():
-    """
-    `[código] (1 byte)` `[data type](1 byte)` `[tamanho] (1 byte)` `[restantes] (7 bytes)`
+    """Classe que constrói, processa e valida um Head. 
+    Embora não precise ser instanciada diretamente, é utilizada
+    internamente ao construir um Package.
     """
 
     def __init__(self, code: str = "default", dtype: str = "bytes", length: int = 0,
                  remaining: int = 0):
+        """
+
+        Args:
+            code (str, optional): Código que classifica o Package. Defaults to "default".
+            dtype (str, optional): Tipo de dado no qual o payload pode ser convertido. Defaults to "bytes".
+            length (int, optional): Comprimento em bytes do Payload. Defaults to 0.
+            remaining (int, optional): Quantidade restante de pacotes (packages) a serem recebidos. Defaults to 0.
+        """
 
         self.code: str = get_code(code)
         self.dtype: str = self.get_dtype(dtype)
@@ -23,13 +32,27 @@ class Head():
     def __call__(self):
         return self.encoded
 
-    def describe(self):
+    def describe(self) -> dict:
+        """Devolve um dicionário contendo todos os atributos do Head
+
+        Returns:
+            dict: 
+            exemplo = {
+                "code": "D", 
+                "dtype": "B",
+                "length": 9, 
+                "remaining": 11, 
+                "encoded": b"DB\\x09\\x00\\x00\\x00\\x00\\x00\\x00\\x0B", 
+                "decoded": ("D", "B", 9, 11)
+            }
+        """
         return {
             "code": self.code,
             "dtype": self.dtype,
             "length": self.length,
             "remaining": self.remaining,
-            "encoded": self.encoded
+            "encoded": self.encoded,
+            "decoded": self.decoded
         }
 
     def get_encoded(self) -> bytes:
@@ -66,12 +89,3 @@ class Head():
             return dtype
         else:
             return "B"
-
-
-def get_code(code):
-    if code in CODES.values():
-        return code
-    elif code in CODES.keys():
-        return CODES[code]
-    else:
-        return "E"

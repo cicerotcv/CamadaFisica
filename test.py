@@ -14,6 +14,10 @@ ERROR_ENCODED = b"EB\x00\x00\x00\x00\x00\x00\x00\x001997"
 CORRUPTED_STREAM = b'\xfffff23fafafa'
 HANDSHAKE_ENCODED = b"HB\x00\x00\x00\x00\x00\x00\x00\x001997"
 
+file = open('qrcode.png', 'rb')
+IMAGE = file.read()
+file.close()
+
 
 class TestParser(unittest.TestCase):
     def testParseBytesToStr(self):
@@ -218,14 +222,22 @@ class TestSplitter(unittest.TestCase):
         result_must_be = [("1"*114).encode()]*3 + [("1"*70).encode()]
         self.assertEqual(splitter.splitted, result_must_be)
 
+
 class TestQueue(unittest.TestCase):
     def testEmptyQueue(self):
         encoded = b''
         splitted = Splitter(encoded).splitted
         queue = PackageQueue(splitted)
-        queue.get_next()
+        self.assertIsNone(queue.get_next())
         self.assertFalse(queue.has_next())
 
+    def testImageToQueue(self):
+        splitted = Splitter(IMAGE).splitted
+        queue = PackageQueue(splitted)
+        self.assertTrue(queue.has_next())  # first
+        while queue.has_next():
+            queue.get_next()
+        self.assertIsNone(queue.get_next())
 
 
 def parser_test_function(this: unittest.TestCase, parser: Parser,

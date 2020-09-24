@@ -7,30 +7,30 @@ from typing import Union, List
 
 
 class Package():
-    # """
-    # Recebe uma sequência de bytes e decodifica em Head, Payload e End of Package 
-    # ou recebe dados suficientes para construir um Package.
+    """
+    Recebe uma sequência de bytes e decodifica em Head, Payload e End of Package 
+    ou recebe dados suficientes para construir um Package.
 
-    # Atributos
-    # --------
+    Atributos
+    --------
 
-    # `head (Head):` Head com as características do Payload;
+    `head (Head):` Head com as características do Payload;
 
-    # `payload (Payload):` Payload que guarda os dados do pacote;
+    `payload (Payload):` Payload que guarda os dados do pacote;
 
-    # `end_of_package (str):` End of Package que serve para validação de integridade;
+    `end_of_package (str):` End of Package que serve para validação de integridade;
 
-    # `encoded (bytes):` Pacote convertido em bytes;
+    `encoded (bytes):` Pacote convertido em bytes;
 
-    # Métodos
-    # -----
+    Métodos
+    -----
 
-    # `is_valid:`  deve sempre retornar True;
+    `is_valid:`  deve sempre retornar True;
 
-    # `is_handshake:` retorna True se o pacote for um handshake;
+    `is_handshake:` retorna True se o pacote for um handshake;
 
-    # `is_error:` retorna True se o pacote for uma notificação de erro;
-    # """
+    `is_error:` retorna True se o pacote for uma notificação de erro;
+    """
 
     def __init__(self, content: Union[bytes, str, int] = b'',
                  code: str = "default", remaining: int = 0, encoded: bytes = None):

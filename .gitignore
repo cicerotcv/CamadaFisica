@@ -1,3 +1,7 @@
 .vscode/
 __pycache__/
 image_verification.png
+enlace.py
+enlaceRx.py
+enlaceTx.py
+interfaceFisica.py

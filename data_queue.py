@@ -78,7 +78,7 @@ class Assembler():
         assembled = b"".join([
             package.payload() for package in self.storage.partitions
         ])
-        self.assembled = None
+        self.assembled = assembled
 
     def write(self, filename: str):
         if self.assembled == None:

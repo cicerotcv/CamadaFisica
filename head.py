@@ -1,8 +1,26 @@
 # -*- coding: utf-8 -*-
 
 from typing import List, Union
+from camfis_utils import CODES
 
-from constants import CODES, DATATYPES, DEFAULT_EOP, get_code
+"""
+h0: tipo da mensagem
+    handshake: 1
+    idle: 2
+    default: 3  deve conter o número do pacote enviado
+    confirmation: 4  # deve conter o número do último pacote recebido
+    timeout: 5 
+    error: 6  deve enviar quando receber tipo 3 inválida
+h1: id sensor int
+h2: id server int
+h3: número total de pacotes no arquivo
+h4: número do pacote sendo enviado
+h5: handshake => id do arquivo (int) || default => tamanho do payload
+h6: pacote solicitado para recomeço quando há erro no envio
+h7: último pacote recebido
+h8-h9: CRC
+
+"""
 
 
 class Head():
@@ -11,81 +29,55 @@ class Head():
     internamente ao construir um Package.
     """
 
-    def __init__(self, code: str = "default", dtype: str = "bytes", length: int = 0,
-                 remaining: int = 0):
-        """
-
-        Args:
-            code (str, optional): Código que classifica o Package. Defaults to "default".
-            dtype (str, optional): Tipo de dado no qual o payload pode ser convertido. Defaults to "bytes".
-            length (int, optional): Comprimento em bytes do Payload. Defaults to 0.
-            remaining (int, optional): Quantidade restante de pacotes (packages) a serem recebidos. Defaults to 0.
-        """
-
-        self.code: str = get_code(code)
-        self.dtype: str = self.get_dtype(dtype)
-        self.length: int = length
-        self.remaining: int = remaining
-        self.encoded = self.get_encoded()
-        self.decoded = self.get_decoded()
+    def __init__(self, tipo: int, id_sensor: int, id_server: int, total_packages: int,
+                 current_package: int, h5: int, h6: int, last_received: int, remainder: bytes):
+        self.type = tipo
+        self.id_sensor = id_sensor
+        self.id_server = id_server
+        self.total_packages = total_packages
+        self.current_package = current_package
+        self.h5 = h5
+        self.h6 = h6
+        self.last_received = last_received
+        self.remainder = remainder  # 2 bytes
 
     def __call__(self):
-        return self.encoded
+        return self.encode()
 
-    def describe(self) -> dict:
-        """Devolve um dicionário contendo todos os atributos do Head
+    def is_valid(self) -> bool:
+        return self.type in list(CODES.keys()) + list(CODES.values())
 
-        Returns:
-            dict: 
-            exemplo = {
-                "code": "D", 
-                "dtype": "B",
-                "length": 9, 
-                "remaining": 11, 
-                "encoded": b"DB\\x09\\x00\\x00\\x00\\x00\\x00\\x00\\x0B", 
-                "decoded": ("D", "B", 9, 11)
-            }
-        """
-        return {
-            "code": self.code,
-            "dtype": self.dtype,
-            "length": self.length,
-            "remaining": self.remaining,
-            "encoded": self.encoded,
-            "decoded": self.decoded
-        }
+    def encode(self) -> bytes:
+        a = int.to_bytes(self.type, 1, 'big')
+        b = int.to_bytes(self.id_sensor, 1, 'big')
+        c = int.to_bytes(self.id_server, 1, 'big')
+        d = int.to_bytes(self.total_packages, 1, 'big')
+        e = int.to_bytes(self.current_package, 1, 'big')
+        f = int.to_bytes(self.h5, 1, 'big')
+        g = int.to_bytes(self.h6, 1, 'big')
+        h = int.to_bytes(self.last_received, 1, 'big')
+        encoded = a + b + c + d + e + f + g + h
+        return encoded + self.remainder
 
-    def get_encoded(self) -> bytes:
-        return self.code.encode() \
-            + self.dtype.encode() \
-            + self.length.to_bytes(1, 'big') \
-            + self.remaining.to_bytes(7, 'big')
+    def is_handshake(self):
+        return self.type == 1
 
-    def get_decoded(self) -> bytes:
-        """(code, length, remaining)"""
-        return (self.code, self.dtype, self.length, self.remaining)
+    def is_idle(self):
+        return self.type == 2
 
-    def is_valid(self):
-        if self.code not in list(CODES.values()) + list(CODES.keys()):
-            print(f"[HEAD] code not in CODES")
-            self.code = "E"
-            return False
-        if self.dtype not in list(DATATYPES.keys()) + list(DATATYPES.values()):
-            print(f"[HEAD] dtype not in DATATYPES")
-            self.code = "E"
-            return False
-        if not 0 <= self.length < 128:
-            self.code = "E"
-            return False
-        if not 0 <= self.remaining < 2**56:
-            self.code = "E"
-            return False
-        return True
+    def is_default(self):
+        return self.type == 3
 
-    def get_dtype(self, dtype) -> object:
-        if dtype in DATATYPES.keys():
-            return DATATYPES[dtype]
-        elif dtype in DATATYPES.values():
-            return dtype
-        else:
-            return "B"
+    def is_confirmation(self):
+        return self.type == 4
+
+    def is_timeout(self):
+        return self.type == 5
+
+    def is_error(self):
+        return self.type == 6
+
+
+if __name__ == "__main__":
+    head = Head(1, 2, 3, 4, 5, 6, 7, 8, b'\x00\x00')
+    print(head.encode())

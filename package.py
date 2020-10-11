@@ -1,121 +1,133 @@
 # -*- coding: utf-8 -*-
-from constants import CODES, DATATYPES, DEFAULT_EOP
-from data_parser import Parser
+from typing import Union, List
 from head import Head
 from payload import Payload
-from typing import Union, List
+from end_of_package import EndOfPackage
+from adapter import Adapter
+from camfis_utils import get_remainder, EOP
 
 
 class Package():
-    """
-    Recebe uma sequência de bytes e decodifica em Head, Payload e End of Package 
-    ou recebe dados suficientes para construir um Package.
-
-    Atributos
-    --------
-
-    `head (Head):` Head com as características do Payload;
-
-    `payload (Payload):` Payload que guarda os dados do pacote;
-
-    `end_of_package (str):` End of Package que serve para validação de integridade;
-
-    `encoded (bytes):` Pacote convertido em bytes;
-
-    Métodos
-    -----
-
-    `is_valid:`  deve sempre retornar True;
-
-    `is_handshake:` retorna True se o pacote for um handshake;
-
-    `is_error:` retorna True se o pacote for uma notificação de erro;
-    """
-
-    def __init__(self, content: Union[bytes, str, int] = b'',
-                 code: str = "default", remaining: int = 0, encoded: bytes = None):
-        if encoded:
-            self.parser = Parser(encoded)
-            self.head = Head(code=self.parser.code,
-                             dtype=self.parser.dtype,
-                             length=self.parser.length,
-                             remaining=self.parser.remaining)
-            self.payload = Payload(
-                data=self.parser.payload,
-                dtype=self.parser.dtype,
-                length=self.parser.length)
-            self.end_of_package = self.parser.eop
+    # tipo: int, id_sensor: int, id_server: int, total_packages: int,
+    #  current_package: int, h5: int, h6: int, last_received: int, remainder: bytes
+    def __init__(self, message: bytes = b'', type: int = 0, id_sensor: int = 1,
+                 id_server: int = 2, total_packages: int = 0, current_package: int = 0,
+                 h5: int = 0, h6: int = 0, last_received: int = 0,
+                 encoded: bytes = None):
+        if encoded != None:
+            adapter = Adapter(encoded)
+            self.head = adapter.head
+            self.payload = adapter.payload
+            self.end_of_package = adapter.end_of_package
         else:
-            self.payload = Payload(content)
-            self.head = Head(code=code, dtype=self.payload.dtype,
-                             length=self.payload.length, remaining=remaining)
-            self.end_of_package = self.get_end_of_package()
-        self.encoded = self.get_encoded()
+            self.head = self.create_head(type, id_sensor, id_server,
+                                         total_packages, current_package, h5,
+                                         h6, last_received, message)
+            self.payload = Payload(message)
+            self.end_of_package = EndOfPackage().eop
 
-        # --> atributos <-- #
-        # self.head
-        # self.payload
-        # self.end_of_package
-        # self.encoded
+    def __call__(self):
+        head = self.head()
+        payload = self.payload()
+        eop = self.end_of_package
+        return head + payload + eop
 
-    def __call__(self) -> bytes:
-        """Devolve a versão em bytes do pacote;
-        Returns:
-
-            bytes: b'DB\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00ABCD1997'
-        """
-        return self.encoded
-
-    def describe(self):
-        return {
-            "head": self.head.describe(),
-            "payload": self.payload.describe(),
-            "end_of_package":  self.end_of_package,
-            "size": self.payload.length + 14,
-            "encoded": self.encoded
-        }
-
-    def is_valid(self) -> bool:
-        """Nunca deve retornar False;
-
-        Returns:
-
-            bool: Verifica se o pacote está legível. 
-            Se o pacote contiver erros, ainda assim deve 
-            ser convertido em um pacote de error (código "E")
-            e se manter legível
-        """
-        a = self.head.is_valid()  # head
-        b = self.payload.is_valid()  # payload
-        c = self.end_of_package == DEFAULT_EOP  # end of package
-        d = self.head.length == self.payload.length
+    def is_valid(self):
+        """Must be used by receiver"""
+        a = self.head.is_valid()
+        b = self.payload.is_valid()
+        c = self.end_of_package.is_valid()
+        if self.is_default():
+            d = get_remainder(self.payload.message) == self.head.remainder
+        else:
+            d = True
         return all([a, b, c, d])
 
-    def is_handshake(self) -> bool:
-        """Verifica se o tipo do pacote é handshake (código "H")
+    def is_handshake(self):
+        """Tipo 1"""
+        boolean = self.head.is_handshake()
+        if boolean:
+            self.id_arquivo: self.head.h5
+        return boolean
 
-        Returns:
+    def is_idle(self):
+        """Tipo 2"""
+        return self.head.is_idle()
 
-            bool: True | False
-        """
-        return self.head.code == "H"
+    def is_default(self):
+        """Tipo 3"""
+        return self.head.is_default()
 
-    def is_error(self) -> bool:
-        """Verifica se o tipo do pacote é error (código "E")
+    def is_confirmation(self):
+        """Tipo 4"""
+        return self.head.is_confirmation()
 
-        Returns:
+    def is_timeout(self):
+        """Tipo 5"""
+        return self.head.is_timeout()
 
-            bool: True | False
-        """
-        return self.head.code == "E"
+    def is_error(self):
+        """Tipo 6"""
+        return self.head.is_error()
 
-    def get_end_of_package(self) -> str:
-        return DEFAULT_EOP
+    def create_head(self, type, id_sensor, id_server,
+                    total_packages, current_package, h5, h6, last_received, message):
+        if type == 3:
+            h5 = len(message)
+            h6 = 0
+            remainder = get_remainder(message)
+        elif type == 6:
+            h5 = 0
+            remainder = b'\x00\x00'
+        else:
+            remainder = b'\x00\x00'
 
-    def get_encoded(self) -> bytes:
-        """Devolve a versão em bytes do pacote;
-        Returns:
+        head = Head(type, id_sensor, id_server, total_packages,
+                    current_package, h5, h6, last_received, remainder)
+        return head
 
-            bytes: b'DB\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00ABCD1997'
-        """
-        return self.head() + self.payload() + self.end_of_package.encode()
+
+class Handshake(Package):
+    def __init__(self, id_sensor, id_server, id_arquivo):
+        super(Handshake, self).__init__(type=1, id_sensor=id_sensor,
+                                        id_server=id_server, h5=id_arquivo)
+
+
+class Idle(Package):
+    def __init__(self, id_sensor, id_server):
+        super(Idle, self).__init__(
+            type=2, id_sensor=id_sensor, id_server=id_server)
+
+
+class Default(Package):
+    def __init__(self, message, id_sensor, id_server, current_package, total_packages):
+        super(Default, self).__init__(message=message, type=3, id_sensor=id_sensor,
+                                      id_server=id_server, total_packages=total_packages,
+                                      current_package=current_package)
+
+
+class Confirmation(Package):
+    def __init__(self, id_sensor, id_server):
+        super(Confirmation, self).__init__(
+            type=4, id_sensor=id_sensor, id_server=id_server)
+
+
+class Timeout(Package):
+    def __init__(self, id_sensor, id_server):
+        super(Timeout, self).__init__(
+            type=5, id_sensor=id_sensor, id_server=id_server)
+
+
+class Error(Package):
+    def __init__(self, id_sensor, id_server, last_received):
+        super(Handshake, self).__init__(type=6, id_sensor=id_sensor,
+                                        id_server=id_server, h6=last_received)
+
+
+if __name__ == "__main__":
+    handshake = Handshake(1, 2, 3)
+    print(handshake.is_handshake())
+
+    print(handshake())
+    data = Package(encoded=handshake())
+    print(data())

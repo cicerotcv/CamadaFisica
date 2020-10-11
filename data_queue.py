@@ -1,4 +1,4 @@
-from constants import DEFAULT_EOP, PAYLOAD_SIZE, get_code, get_length
+from camfis_utils import EOP, PAYLOAD_SIZE 
 from typing import Union, List
 from package import Package
 
@@ -20,7 +20,7 @@ class Splitter():
 class PackageQueue():
     def __init__(self, partitions: list):
         self.elements = self.get_elements(partitions)
-        self.current = 0
+        self.current = 1
         self.length = len(self.elements)
 
     def get_elements(self, partitions) -> list:

@@ -11,17 +11,20 @@ CODES = {
 }
 
 EOP = b'\xff\x00\xff\x00'  # end of package esperado
-
+PAYLOAD_SIZE = 114
 
 class Logger():
-    def __init__(self, name: str):
+    def __init__(self, name: str, filename: str = ""):
         self.name = name
+        self.filename = filename
 
     def log(self, text):
         now = time.time()
         tformatter = time.ctime
-
         print(f'[{self.name}][{tformatter(now)}] {text}')
+        if self.filename.endswith(".txt"):
+            with open(self.filename, 'a+', encoding='utf-8') as stdout:
+                print(f'[{self.name}][{tformatter(now)}] {text}', file=stdout)
 
 
 def get_length(data) -> int:

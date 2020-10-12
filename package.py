@@ -25,29 +25,48 @@ class Package():
                                          h6, last_received, message)
             self.payload = Payload(message)
             self.end_of_package = EndOfPackage().eop
+        self.encoded = self.encode()
+        self.description = self.get_description()
+        self.size = len(self.encoded)
 
     def __call__(self):
+        return self.encode()
+
+    def encode(self):
         head = self.head()
         payload = self.payload()
         eop = self.end_of_package
         return head + payload + eop
 
+    def get_description(self):
+        head = self.head
+        return {
+            "tipo": head.type,
+            "id_sensor": head.id_sensor,
+            "id_server": head.id_server,
+            "total_packages": head.total_packages,
+            "current_package": head.current_package,
+            "h5": head.h5,
+            "h6": head.h6,
+            "h7": head.last_received,
+            "h8-h9": head.remainder
+        }
+
     def is_valid(self):
         """Must be used by receiver"""
         a = self.head.is_valid()
         b = self.payload.is_valid()
-        c = self.end_of_package.is_valid()
         if self.is_default():
             d = get_remainder(self.payload.message) == self.head.remainder
         else:
             d = True
-        return all([a, b, c, d])
+        return all([a, b, d])
 
     def is_handshake(self):
         """Tipo 1"""
         boolean = self.head.is_handshake()
         if boolean:
-            self.id_arquivo: self.head.h5
+            self.id_arquivo = self.head.h5
         return boolean
 
     def is_idle(self):
@@ -68,7 +87,10 @@ class Package():
 
     def is_error(self):
         """Tipo 6"""
-        return self.head.is_error()
+        boolean = self.head.is_error()
+        if boolean:
+            self.last_received = self.head.h6
+        return boolean
 
     def create_head(self, type, id_sensor, id_server,
                     total_packages, current_package, h5, h6, last_received, message):
@@ -88,9 +110,10 @@ class Package():
 
 
 class Handshake(Package):
-    def __init__(self, id_sensor, id_server, id_arquivo):
+    def __init__(self, id_sensor, id_server, id_arquivo, total_packages):
         super(Handshake, self).__init__(type=1, id_sensor=id_sensor,
-                                        id_server=id_server, h5=id_arquivo)
+                                        id_server=id_server, h5=id_arquivo,
+                                        total_packages=total_packages)
 
 
 class Idle(Package):
@@ -120,7 +143,7 @@ class Timeout(Package):
 
 class Error(Package):
     def __init__(self, id_sensor, id_server, last_received):
-        super(Handshake, self).__init__(type=6, id_sensor=id_sensor,
+        super(Error, self).__init__(type=6, id_sensor=id_sensor,
                                         id_server=id_server, h6=last_received)
 
 

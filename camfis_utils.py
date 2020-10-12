@@ -1,6 +1,7 @@
 # coding: utf-8
 import time
-
+from datetime import datetime
+import arrow
 CODES = {
     "handshake": 1,
     "idle": 2,
@@ -13,18 +14,19 @@ CODES = {
 EOP = b'\xff\x00\xff\x00'  # end of package esperado
 PAYLOAD_SIZE = 114
 
+
 class Logger():
     def __init__(self, name: str, filename: str = ""):
         self.name = name
         self.filename = filename
 
     def log(self, text):
-        now = time.time()
-        tformatter = time.ctime
-        print(f'[{self.name}][{tformatter(now)}] {text}')
+        timestamp = datetime.strftime(
+            datetime.fromtimestamp(time.time()), "%Y/%m/%d %H:%M:%S.%f")
+        print(f'[{self.name}][{timestamp}] {text}')
         if self.filename.endswith(".txt"):
             with open(self.filename, 'a+', encoding='utf-8') as stdout:
-                print(f'[{self.name}][{tformatter(now)}] {text}', file=stdout)
+                print(f'[{self.name}][{timestamp}] {text}', file=stdout)
 
 
 def get_length(data) -> int:
@@ -94,7 +96,7 @@ def mod2div(divident, divisor):
             # of XOR and pull 1 bit down
             tmp = xor(divisor, tmp) + divident[pick]
 
-        else:   # If leftmost bit is '0'
+        else:  # If leftmost bit is '0'
             # If the leftmost bit of the dividend (or the
             # part used in each step) is 0, the step cannot
             # use the regular divisor; we need to use an
@@ -132,29 +134,10 @@ def encodeData(data, key):
     return codeword
 
 
-def decodeData(data, key):
-    # Function used at the receiver side to decode
-    # data received by sender
-
-    l_key = len(key)
-
-    # Appends n-1 zeroes at end of data
-    appended_data = data + key  # '0'*(l_key-1)
-    remainder = mod2div(appended_data, key)
-
-    return remainder
-
-
 def encode(message: bytes, poly: bytes = b"\xE2\xA5") -> int:
     key = bytes_to_bin(poly)
     message = bytes_to_bin(message)
     return encodeData(message, key)
-
-
-def decode(message: bytes, poly=b"\xE2\xA5") -> int:
-    key = bytes_to_bin(poly)
-    message = bytes_to_bin(message)
-    return decodeData(message, key)
 
 
 def get_remainder(message: bytes, poly: bytes = b'\xE2\xA5') -> bytes:
@@ -164,13 +147,18 @@ def get_remainder(message: bytes, poly: bytes = b'\xE2\xA5') -> bytes:
 
 if __name__ == "__main__":
     mensagem = b'\x45\x00\x00\x3c\x00\x00\x00\x00\x40\x11\x00\x00\xc0\xa8\x2b\xc3\x08\x08\x08\x08\x11'
-    mensagem = b'\x45\x32'
-    remainder = encode(mensagem)
-    print(f'remainder: {remainder}')
-    hex_remainder = int.to_bytes(int(remainder, 2), 2, 'big')
-    print(f'hex remainder: {hex_remainder}')
+    # mensagem = b'\x45\x32'
+    # remainder = encode(mensagem)
+    # print(f'remainder: {remainder}')
+    # hex_remainder = int.to_bytes(int(remainder, 2), 2, 'big')
+    # print(f'hex remainder: {hex_remainder}')
 
-    print(f'decoded remainder: {decode(mensagem)}')
+    remainder = get_remainder(mensagem)
+    print(f"Resto: {remainder}")
 
-    logger = Logger("Server")
-    logger("Hello world")
+    # logger = Logger("Server")
+    # logger("Hello world")
+    timestamp = datetime.strftime(
+        datetime.fromtimestamp(time.time()), "%Y/%m/%d %H-%M-%S.%f")
+
+    print(timestamp)

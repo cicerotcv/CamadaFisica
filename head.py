@@ -40,6 +40,7 @@ class Head():
         self.h6 = h6
         self.last_received = last_received
         self.remainder = remainder  # 2 bytes
+        self.encoded = self.encode()
 
     def __call__(self):
         return self.encode()

@@ -5,3 +5,7 @@ enlace.py
 enlaceRx.py
 enlaceTx.py
 interfaceFisica.py
+*.txt
+*.ipynb
+CamadaFisica.rar
+ID0.png

@@ -1,6 +1,6 @@
-from camfis_utils import EOP, PAYLOAD_SIZE 
+from camfis_utils import EOP, PAYLOAD_SIZE
 from typing import Union, List
-from package import Package
+from package import Package, Default
 
 
 class Splitter():
@@ -25,27 +25,30 @@ class PackageQueue():
 
     def get_elements(self, partitions) -> list:
         elements = []
-        for index, element in enumerate(partitions):
-            remaining = len(partitions) - (index + 1)
-            package = Package(content=element, code="D", remaining=remaining)
+        for index, message in enumerate(partitions):
+            current_package = index + 1
+            total_packages = len(partitions)
+            package = Default(message, 1, 2, current_package, total_packages)
             elements.append(package)
         return elements
 
-    def get_next(self):
+    def get_next(self) -> Package:
         if self.has_next():
-            next = self.elements[self.current]
+            next = self.elements[self.current-1]
             self.current += 1
             return next
 
-    def get_previous(self):
-        previous = self.elements[self.current - 1]
+    def get_nth(self, n: int):
+        """1 <= n <= self.length"""
+        previous = self.elements[n-1]
+        self.current = n+1
         return previous
 
     def has_next(self):
         # self.length = 2
         # self.current = 1
         # deve retornar True
-        return (self.current <= self.length - 1) and (self.length > 0)
+        return (self.current <= self.length) and (self.length > 0)
 
 
 class Storage():
@@ -54,7 +57,11 @@ class Storage():
         self.size = 0
 
     def insert(self, pkg: Package):
-        self.partitions.append(pkg)
+        if pkg.head.current_package <= self.size+1:
+            self.partitions.append(pkg)
+        else:
+            self.partitions[pkg.head.current_package] = pkg
+        self.set_size()
 
     def remove_last(self):
         if self.size > 0:
@@ -62,11 +69,11 @@ class Storage():
 
     def set_partitions(self, new_partitions):
         self.partitions = new_partitions
-        self.size = self.get_size()
+        self.set_size()
 
-    def get_size(self) -> int:
+    def set_size(self) -> int:
         size = sum([package.payload.length for package in self.partitions])
-        return size
+        self.size = size
 
 
 class Assembler():
